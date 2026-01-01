@@ -1,0 +1,5 @@
+{
+  "name": "ElectraBid - Anonymous Voting & Auction Platform",
+  "description": "A secure, anonymous polling and live auction platform featuring real-time updates and voter authentication.",
+  "requestFramePermissions": ["camera"]
+}
