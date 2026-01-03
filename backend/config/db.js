@@ -11,5 +11,13 @@ export const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: Number(process.env.DB_CONN_LIMIT || 5),
   queueLimit: 0,
-  ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: true } : undefined,
+  // SSL options: set DB_SSL=true to enable TLS. To accept self-signed certs set
+  // DB_SSL_REJECT_UNAUTHORIZED=false (not recommended for production without understanding the risk).
+  ssl:
+    process.env.DB_SSL === "true"
+      ? {
+          rejectUnauthorized:
+            process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false",
+        }
+      : undefined,
 });
