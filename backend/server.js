@@ -10,10 +10,11 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+// Allow CORS from local dev and production frontend (configurable via env)
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://anonymous-voting-and-auction-platfo.vercel.app",
-];
+  process.env.FRONTEND_ORIGIN || "https://anonymous-voting-and-auction-platfo.vercel.app"
+].filter(Boolean);
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 app.get("/health", (req, res) => res.json({ ok: true }));
