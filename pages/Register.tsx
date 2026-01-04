@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User as UserIcon, Mail, Lock, ShieldCheck, ChevronRight } from 'lucide-react';
+import { User as UserIcon, Mail, Lock, ShieldCheck, ChevronRight, Loader2 } from 'lucide-react';
 import { User, UserRole } from '../types';
+import { api } from '../services/api'; // Import the real API
 
 interface RegisterProps {
   onLogin: (user: User) => void;
@@ -11,26 +11,51 @@ interface RegisterProps {
 const Register: React.FC<RegisterProps> = ({ onLogin }) => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
     if (formData.password !== formData.confirm) {
       setError('Passwords do not match');
       return;
     }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
+    
+    setLoading(true);
 
-    onLogin({
-      id: Math.random().toString(),
-      name: formData.name,
-      email: formData.email,
-      role: UserRole.VOTER
-    });
-    navigate('/');
+    try {
+      // 1. REGISTER: Send data to Render backend -> Filess.io DB
+      await api.register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      });
+
+      // 2. LOGIN: Automatically log in to get the JWT token
+      const { token } = await api.login({
+        email: formData.email,
+        password: formData.password
+      });
+
+      // 3. SAVE SESSION
+      localStorage.setItem('token', token);
+      
+      onLogin({
+        id: 'self', 
+        name: formData.name,
+        email: formData.email,
+        role: UserRole.VOTER
+      });
+
+      navigate('/');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Registration failed. Check your internet connection.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -107,15 +132,16 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
             <div className="bg-slate-50 p-4 rounded-2xl flex items-start gap-3 border border-slate-100">
               <ShieldCheck className="text-green-600 shrink-0" size={20} />
               <p className="text-xs text-slate-500 leading-relaxed">
-                By registering, you agree to our 2-way verification protocol and anonymous voting standards. Your data is protected.
+                By registering, you agree to our verification protocol. Data is stored securely.
               </p>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Join Platform <ChevronRight size={20} />
+              {loading ? <Loader2 className="animate-spin" /> : <>Join Platform <ChevronRight size={20} /></>}
             </button>
           </form>
 

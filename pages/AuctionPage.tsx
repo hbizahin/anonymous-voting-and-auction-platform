@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { mockBackend } from '../services/mockBackend';
+import { api } from '../services/api'; // Use real API
 import { Auction, User } from '../types';
 import { Gavel, TrendingUp, Clock, AlertCircle } from 'lucide-react';
 
@@ -13,22 +12,35 @@ const AuctionPage: React.FC<AuctionPageProps> = ({ user }) => {
   const [bidAmounts, setBidAmounts] = useState<Record<string, number>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+  // Fetch real auctions from database
+  const fetchAuctions = async () => {
+    try {
+      const data = await api.getAuctions();
+      setAuctions(data);
+    } catch (err) {
+      console.error("Failed to load auctions", err);
+    }
+  };
+
   useEffect(() => {
-    setAuctions(mockBackend.getAuctions());
+    fetchAuctions();
   }, []);
 
-  const handlePlaceBid = (auctionId: string) => {
+  const handlePlaceBid = async (auctionId: string) => {
     const bidValue = bidAmounts[auctionId];
     if (!bidValue) return;
 
-    const success = mockBackend.placeBid(auctionId, bidValue, user);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error("Please login to bid");
 
-    if (success) {
+      await api.placeBid(auctionId, bidValue, token);
+
       setMessage({ type: 'success', text: `Successfully placed a bid of $${bidValue}!` });
-      setAuctions(mockBackend.getAuctions());
+      fetchAuctions(); // Refresh data
       setBidAmounts({ ...bidAmounts, [auctionId]: 0 });
-    } else {
-      setMessage({ type: 'error', text: 'Bid must be higher than the current highest bid.' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Bid failed' });
     }
 
     setTimeout(() => setMessage(null), 3000);
@@ -39,11 +51,7 @@ const AuctionPage: React.FC<AuctionPageProps> = ({ user }) => {
       <div className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-4xl font-extrabold text-slate-900 mb-2">Live Auctions</h1>
-          <p className="text-slate-600">Secure bidding platform for exclusive high-value items.</p>
-        </div>
-        <div className="bg-indigo-50 px-4 py-2 rounded-full flex items-center gap-2 border border-indigo-100">
-          <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
-          <span className="text-indigo-700 font-bold text-sm">LIVE UPDATES ACTIVE</span>
+          <p className="text-slate-600">Secure bidding platform.</p>
         </div>
       </div>
 
@@ -79,12 +87,9 @@ const AuctionPage: React.FC<AuctionPageProps> = ({ user }) => {
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                   <p className="text-slate-500 text-xs font-bold uppercase mb-1">Current Bid</p>
-                  <p className="text-2xl font-black text-indigo-600">${auction.currentBid.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-indigo-600">${Number(auction.currentBid || 0).toLocaleString()}</p>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <p className="text-slate-500 text-xs font-bold uppercase mb-1">Highest Bidder</p>
-                  <p className="text-sm font-bold text-slate-700 truncate">{auction.highestBidder || 'No bids yet'}</p>
-                </div>
+                {/* Note: Real backend might not return highest bidder name for privacy, check your API response */}
               </div>
 
               <div className="space-y-4">
