@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, ChevronRight, UserCheck, ShieldAlert } from 'lucide-react';
 import { User, UserRole } from '../types';
+import { api } from '../services/api';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -14,32 +15,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    // --- HARDCODED TESTING CREDENTIALS ---
-    // Admin: Hamza Bin Islam
-    if (email === 'hamza@gmail.com' && password === '12345') {
-      onLogin({ 
-        id: 'admin_hamza', 
-        name: 'Hamza Bin Islam', 
-        email: 'hamza@gmail.com', 
-        role: UserRole.ADMIN 
-      });
+    try {
+      const { token } = await api.login({ email, password });
+      localStorage.setItem('token', token);
+      const user: User = { id: 'self', name: email.split('@')[0], email, role: UserRole.VOTER };
+      onLogin(user);
       navigate('/');
-    } 
-    // Voter: Fouzia Ahmed Reya
-    else if (email === 'fouzia@gmail.com' && password === '12345') {
-      onLogin({ 
-        id: 'voter_fouzia', 
-        name: 'Fouzia Ahmed Reya', 
-        email: 'fouzia@gmail.com', 
-        role: UserRole.VOTER 
-      });
-      navigate('/');
-    } else {
-      setError('Invalid credentials. Please use the test accounts provided below.');
+    } catch (err: any) {
+      setError(err?.message || 'Login failed');
     }
   };
 
@@ -52,22 +38,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <p className="text-slate-500">Access the ElectraBid Voting & Auction Engine</p>
           </div>
 
-          {/* Test Credentials Helper Box */}
-          <div className="mb-8 p-5 bg-indigo-50 border border-indigo-100 rounded-2xl">
-            <h3 className="text-sm font-bold text-indigo-800 mb-3 flex items-center gap-2">
-              <UserCheck size={16} /> Test Credentials (Authorized)
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-indigo-600 font-semibold flex items-center gap-1"><ShieldAlert size={12}/> Admin:</span>
-                <code className="bg-white px-2 py-0.5 rounded border border-indigo-100">hamza@gmail.com / 12345</code>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-indigo-600 font-semibold flex items-center gap-1"><UserCheck size={12}/> Voter:</span>
-                <code className="bg-white px-2 py-0.5 rounded border border-indigo-100">fouzia@gmail.com / 12345</code>
-              </div>
-            </div>
-          </div>
+          {/* Removed hardcoded demo credentials */}
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100">
