@@ -1,8 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
-import { mockBackend } from '../services/mockBackend';
+import { api } from '../services/api';
 import { Election, User, VoteReceipt } from '../types';
-// Fix: Add Vote as VoteIcon to avoid conflict with the component name 'Vote'
 import { CheckCircle, AlertTriangle, ShieldCheck, Fingerprint, Vote as VoteIcon } from 'lucide-react';
 
 interface VoteProps {
@@ -17,8 +15,17 @@ const Vote: React.FC<VoteProps> = ({ user }) => {
   const [error, setError] = useState<string>('');
   const [isVoting, setIsVoting] = useState(false);
 
+  // Fetch elections from the real backend on mount
   useEffect(() => {
-    setElections(mockBackend.getElections());
+    const fetchElections = async () => {
+      try {
+        const data = await api.getElections();
+        setElections(data);
+      } catch (err) {
+        console.error("Failed to load elections:", err);
+      }
+    };
+    fetchElections();
   }, []);
 
   const handleVote = async () => {
@@ -27,19 +34,39 @@ const Vote: React.FC<VoteProps> = ({ user }) => {
     setIsVoting(true);
     setError('');
 
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 1000));
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
 
-    const result = mockBackend.submitVote(selectedElection.id, selectedCandidate, user.id);
-    
-    if (result) {
-      setReceipt(result);
+      // Call the real API
+      const result = await api.vote(
+        { 
+          election_id: selectedElection.id, 
+          candidate_id: selectedCandidate 
+        }, 
+        token
+      );
+      
+      // Construct the receipt object from API response
+      const newReceipt: VoteReceipt = {
+        voteId: result.voteId,
+        receiptCode: result.receiptCode,
+        timestamp: new Date().toISOString(),
+        // Add other fields if your VoteReceipt type requires them, 
+        // e.g., electionId: selectedElection.id, candidateId: selectedCandidate
+      } as VoteReceipt; // Casting to fit the shared type definition if needed
+
+      setReceipt(newReceipt);
       setSelectedElection(null);
       setSelectedCandidate('');
-    } else {
-      setError('You have already cast a vote in this election.');
+    } catch (err: any) {
+      // Display error message from backend (e.g., "already voted")
+      setError(err.message || 'Voting failed. Please try again.');
+    } finally {
+      setIsVoting(false);
     }
-    setIsVoting(false);
   };
 
   if (receipt) {
@@ -86,6 +113,9 @@ const Vote: React.FC<VoteProps> = ({ user }) => {
           <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
             <ShieldCheck className="text-indigo-600" /> Active Elections
           </h2>
+          {elections.length === 0 && (
+             <p className="text-slate-500 italic">No active elections found.</p>
+          )}
           {elections.map(election => (
             <button
               key={election.id}
@@ -122,30 +152,37 @@ const Vote: React.FC<VoteProps> = ({ user }) => {
 
               <div className="space-y-4 mb-8">
                 <p className="font-semibold text-slate-700 mb-2 uppercase tracking-wider text-sm">Select one candidate</p>
-                {selectedElection.candidates.map(candidate => (
-                  <label 
-                    key={candidate.id}
-                    className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      selectedCandidate === candidate.id 
-                        ? 'border-indigo-600 bg-indigo-50' 
-                        : 'border-slate-100 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <input 
-                      type="radio" 
-                      name="candidate" 
-                      className="hidden" 
-                      value={candidate.id}
-                      onChange={(e) => setSelectedCandidate(e.target.value)}
-                    />
-                    <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center ${
-                      selectedCandidate === candidate.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
-                    }`}>
-                      {selectedCandidate === candidate.id && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                    </div>
-                    <span className="font-bold text-slate-800 text-lg">{candidate.name}</span>
-                  </label>
-                ))}
+                {/* Ensure candidates exist before mapping to prevent crashes if backend data is incomplete */}
+                {selectedElection.candidates && selectedElection.candidates.length > 0 ? (
+                  selectedElection.candidates.map(candidate => (
+                    <label 
+                      key={candidate.id}
+                      className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                        selectedCandidate === candidate.id 
+                          ? 'border-indigo-600 bg-indigo-50' 
+                          : 'border-slate-100 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <input 
+                        type="radio" 
+                        name="candidate" 
+                        className="hidden" 
+                        value={candidate.id}
+                        onChange={(e) => setSelectedCandidate(e.target.value)}
+                      />
+                      <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center ${
+                        selectedCandidate === candidate.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
+                      }`}>
+                        {selectedCandidate === candidate.id && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                      </div>
+                      <span className="font-bold text-slate-800 text-lg">{candidate.name}</span>
+                    </label>
+                  ))
+                ) : (
+                  <div className="p-4 bg-yellow-50 text-yellow-800 rounded-xl border border-yellow-200">
+                    No candidates found for this election.
+                  </div>
+                )}
               </div>
 
               <div className="bg-slate-50 p-6 rounded-2xl mb-8 border border-slate-200 flex items-start gap-4">
@@ -172,7 +209,6 @@ const Vote: React.FC<VoteProps> = ({ user }) => {
             </div>
           ) : (
             <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 text-slate-400 p-12 text-center">
-              {/* Fix: Use VoteIcon here to correctly render the icon and avoid recursion */}
               <VoteIcon size={64} className="mb-4 opacity-20" />
               <p className="text-xl font-medium">Select an election from the list to view candidates and cast your vote.</p>
             </div>

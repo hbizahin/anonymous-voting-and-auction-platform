@@ -5,19 +5,29 @@ import { randomUUID } from "crypto";
 
 const router = express.Router();
 
-// List elections
+// List elections WITH candidates
 router.get("/", async (req, res) => {
   try {
-    const [rows] = await pool.query(
+    // 1. Fetch all elections
+    const [elections] = await pool.query(
       "SELECT * FROM elections ORDER BY created_at DESC"
     );
-    res.json(rows);
+
+    // 2. Fetch all candidates
+    const [candidates] = await pool.query("SELECT * FROM candidates");
+
+    // 3. Nest candidates inside their respective elections
+    const electionsWithCandidates = elections.map((election) => ({
+      ...election,
+      candidates: candidates.filter((c) => c.election_id === election.id),
+    }));
+
+    res.json(electionsWithCandidates);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "server error" });
   }
 });
-
 // Create election (admin)
 router.post("/", authenticateToken, async (req, res) => {
   try {
