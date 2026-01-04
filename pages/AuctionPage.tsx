@@ -89,7 +89,6 @@ const AuctionPage: React.FC<AuctionPageProps> = ({ user }) => {
                   <p className="text-slate-500 text-xs font-bold uppercase mb-1">Current Bid</p>
                   <p className="text-2xl font-black text-indigo-600">${Number(auction.currentBid || 0).toLocaleString()}</p>
                 </div>
-                {/* Note: Real backend might not return highest bidder name for privacy, check your API response */}
               </div>
 
               <div className="space-y-4">

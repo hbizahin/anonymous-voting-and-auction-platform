@@ -52,7 +52,7 @@ const Register: React.FC<RegisterProps> = ({ onLogin }) => {
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Registration failed. Check your internet connection.');
+      setError(err.message || 'Registration failed. Check your internet connection or backend status.');
     } finally {
       setLoading(false);
     }
